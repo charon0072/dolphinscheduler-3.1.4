@@ -146,8 +146,7 @@ public abstract class BaseTaskProcessor implements ITaskProcessor {
         this.commitInterval = masterConfig.getTaskCommitInterval().toMillis();
     }
 
-    protected javax.sql.DataSource defaultDataSource =
-            SpringApplicationContext.getBean(javax.sql.DataSource.class);
+    protected javax.sql.DataSource defaultDataSource = SpringApplicationContext.getBean(javax.sql.DataSource.class);
 
     /**
      * pause task, common tasks donot need this.

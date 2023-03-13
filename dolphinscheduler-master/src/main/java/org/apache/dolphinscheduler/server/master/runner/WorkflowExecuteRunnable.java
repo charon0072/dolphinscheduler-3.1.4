@@ -932,15 +932,15 @@ public class WorkflowExecuteRunnable implements Callable<WorkflowSubmitStatue> {
         try {
             // package task instance before submit
             processService.packageTaskInstance(taskInstance, processInstance);
-
+            // 创建TaskProcess执行容器，默认为CommonTaskProcessor
             ITaskProcessor taskProcessor = TaskProcessorFactory.getTaskProcessor(taskInstance.getTaskType());
             taskProcessor.init(taskInstance, processInstance);
 
-            if (taskInstance.getState().isRunning()
-                    && taskProcessor.getType().equalsIgnoreCase(Constants.COMMON_TASK_TYPE)) {
+            if (taskInstance.getState().isRunning() && taskProcessor.getType().equalsIgnoreCase(Constants.COMMON_TASK_TYPE)) {
                 notifyProcessHostUpdate(taskInstance);
             }
 
+            // 提交任务
             boolean submit = taskProcessor.action(TaskAction.SUBMIT);
             if (!submit) {
                 logger.error("Submit standby task failed!, taskCode: {}, taskName: {}",
@@ -983,15 +983,17 @@ public class WorkflowExecuteRunnable implements Callable<WorkflowSubmitStatue> {
                     return Optional.of(taskInstance);
                 }
             }
-
+            // 提交作业
             boolean dispatchSuccess = taskProcessor.action(TaskAction.DISPATCH);
             if (!dispatchSuccess) {
                 logger.error("Dispatch standby process {} task {} failed", processInstance.getName(), taskInstance.getName());
                 return Optional.empty();
             }
+            // 运行作业
             taskProcessor.action(TaskAction.RUN);
-
+            // 开始超时状态轮询
             stateWheelExecuteThread.addTask4TimeoutCheck(processInstance, taskInstance);
+
             stateWheelExecuteThread.addTask4StateCheck(processInstance, taskInstance);
 
             if (taskProcessor.taskInstance().getState().isFinished()) {
@@ -1014,8 +1016,7 @@ public class WorkflowExecuteRunnable implements Callable<WorkflowSubmitStatue> {
             }
             return Optional.of(taskInstance);
         } catch (Exception e) {
-            logger.error("Submit standby task {} error, taskCode: {}", taskInstance.getName(),
-                    taskInstance.getTaskCode(), e);
+            logger.error("Submit standby task {} error, taskCode: {}", taskInstance.getName(), taskInstance.getTaskCode(), e);
             return Optional.empty();
         } finally {
             LoggerUtils.removeWorkflowAndTaskInstanceIdMDC();
@@ -1316,6 +1317,7 @@ public class WorkflowExecuteRunnable implements Callable<WorkflowSubmitStatue> {
         List<TaskInstance> taskInstances = new ArrayList<>();
         for (String taskNode : submitTaskNodeList) {
             TaskNode taskNodeObject = dag.getNode(taskNode);
+            // 检查TaskInstance是否存在，如果存在，直接添加，不存在则创建
             Optional<TaskInstance> existTaskInstanceOptional = getTaskInstance(taskNodeObject.getCode());
             if (existTaskInstanceOptional.isPresent()) {
                 taskInstances.add(existTaskInstanceOptional.get());
@@ -1724,8 +1726,7 @@ public class WorkflowExecuteRunnable implements Callable<WorkflowSubmitStatue> {
      */
     public void addTaskToStandByList(TaskInstance taskInstance) {
         if (readyToSubmitTaskQueue.contains(taskInstance)) {
-            logger.warn("Task already exists in ready submit queue, no need to add again, task code:{}",
-                    taskInstance.getTaskCode());
+            logger.warn("Task already exists in ready submit queue, no need to add again, task code:{}", taskInstance.getTaskCode());
             return;
         }
         logger.info("Add task to stand by list, task name:{}, task id:{}, task code:{}",
@@ -1816,10 +1817,13 @@ public class WorkflowExecuteRunnable implements Callable<WorkflowSubmitStatue> {
             // stop tasks which is retrying if forced success happens
             if (task.taskCanRetry()) {
                 TaskInstance retryTask = processService.findTaskInstanceById(task.getId());
+                // 如果是强制成功的TaskInstance做以下几件事情
+                // 1、修改待提交队列的TaskInstance的状态，改为强制成功；
+                // 2、从待提交队列移除TaskInstance；
+                // 3、将TaskInstance加入到完成队列
                 if (retryTask != null && retryTask.getState().isForceSuccess()) {
                     task.setState(retryTask.getState());
-                    logger.info("Task {} has been forced success, put it into complete task list and stop retrying, taskInstanceId: {}",
-                            task.getName(), task.getId());
+                    logger.info("Task {} has been forced success, put it into complete task list and stop retrying, taskInstanceId: {}", task.getName(), task.getId());
                     removeTaskFromStandbyList(task);
                     completeTaskMap.put(task.getTaskCode(), task.getId());
                     taskInstanceMap.put(task.getId(), task);
@@ -1833,9 +1837,11 @@ public class WorkflowExecuteRunnable implements Callable<WorkflowSubmitStatue> {
                 Set<String> preTask = dag.getPreviousNodes(Long.toString(task.getTaskCode()));
                 getPreVarPool(task, preTask);
             }
+            // 得到以来节点的运行结果
             DependResult dependResult = getDependResultForTask(task);
             if (DependResult.SUCCESS == dependResult) {
                 logger.info("The dependResult of task {} is success, so ready to submit to execute", task.getName());
+                // 前置节点执行成功后，提交后续节点
                 Optional<TaskInstance> taskInstanceOptional = submitTaskExec(task);
                 if (!taskInstanceOptional.isPresent()) {
                     this.taskFailedSubmit = true;
