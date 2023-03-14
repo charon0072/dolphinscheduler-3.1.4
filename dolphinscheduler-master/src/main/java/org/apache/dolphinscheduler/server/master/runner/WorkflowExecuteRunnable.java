@@ -940,7 +940,7 @@ public class WorkflowExecuteRunnable implements Callable<WorkflowSubmitStatue> {
                 notifyProcessHostUpdate(taskInstance);
             }
 
-            // 提交任务
+            // 提交任务 对应submitTask()方法
             boolean submit = taskProcessor.action(TaskAction.SUBMIT);
             if (!submit) {
                 logger.error("Submit standby task failed!, taskCode: {}, taskName: {}",

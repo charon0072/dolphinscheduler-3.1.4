@@ -1220,8 +1220,7 @@ public class ProcessServiceImpl implements ProcessService {
         // todo: Do we need to consider the other attribute of Property?
         // e.g. the subProp's type is not equals with parent, or subProp's direct is not equals with parent
         // It's suggested to add node name in property, this kind of problem can be solved.
-        List<Property> extraSubParams = subParams.stream()
-                .filter(subProp -> !parentParamKeys.contains(subProp.getProp())).collect(Collectors.toList());
+        List<Property> extraSubParams = subParams.stream().filter(subProp -> !parentParamKeys.contains(subProp.getProp())).collect(Collectors.toList());
         parentParams.addAll(extraSubParams);
         return JSONUtils.toJsonString(parentParams);
     }
@@ -1255,8 +1254,7 @@ public class ProcessServiceImpl implements ProcessService {
      */
     private void initTaskInstance(TaskInstance taskInstance) {
 
-        if (!taskInstance.isSubProcess()
-                && (taskInstance.getState().isKill() || taskInstance.getState().isFailure())) {
+        if (!taskInstance.isSubProcess() && (taskInstance.getState().isKill() || taskInstance.getState().isFailure())) {
             taskInstance.setFlag(Flag.NO);
             updateTaskInstance(taskInstance);
             return;
@@ -1281,10 +1279,7 @@ public class ProcessServiceImpl implements ProcessService {
                 if (task != null && task.getId() != null) {
                     break;
                 }
-                logger.error(
-                        "task commit to db failed , taskCode: {} has already retry {} times, please check the database",
-                        taskInstance.getTaskCode(),
-                        retryTimes);
+                logger.error("task commit to db failed , taskCode: {} has already retry {} times, please check the database", taskInstance.getTaskCode(), retryTimes);
                 Thread.sleep(commitInterval);
             } catch (Exception e) {
                 logger.error("task commit to db failed", e);
@@ -1307,17 +1302,11 @@ public class ProcessServiceImpl implements ProcessService {
     @Override
     @Transactional
     public TaskInstance submitTask(ProcessInstance processInstance, TaskInstance taskInstance) {
-        logger.info("Start save taskInstance to database : {}, processInstance id:{}, state: {}",
-                taskInstance.getName(),
-                taskInstance.getProcessInstanceId(),
-                processInstance.getState());
+        logger.info("Start save taskInstance to database : {}, processInstance id:{}, state: {}", taskInstance.getName(), taskInstance.getProcessInstanceId(), processInstance.getState());
         // submit to db
         TaskInstance task = submitTaskInstanceToDB(taskInstance, processInstance);
         if (task == null) {
-            logger.error("Save taskInstance to db error, task name:{}, process id:{} state: {} ",
-                    taskInstance.getName(),
-                    taskInstance.getProcessInstance().getId(),
-                    processInstance.getState());
+            logger.error("Save taskInstance to db error, task name:{}, process id:{} state: {} ", taskInstance.getName(), taskInstance.getProcessInstance().getId(), processInstance.getState());
             return null;
         }
 
